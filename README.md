@@ -38,10 +38,6 @@ flowchart LR
     Phone -->|"Текст + JPEG · HTTPS"| API["Node.js API"]
     API --> Hermes["Hermes CLI"]
     API --> Weather["Open-Meteo"]
-    Hermes --> Answer["Ответ"]
-    Weather --> Answer
-    Answer --> Phone
-    Phone --> Output["Экран + голос"]
 ```
 
 iPhone работает с очками и голосом. Шлюз проверяет Bearer token, обрабатывает запрос и временный снимок. Hermes отвечает на обычные и визуальные вопросы; погода обрабатывается отдельным маршрутом.
