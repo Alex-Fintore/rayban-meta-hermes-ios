@@ -8,12 +8,11 @@
 - Confirm `Capture from glasses` produces a usable JPEG preview.
 - Run an end-to-end ask against the VPS endpoint after backend deployment.
 
-## Backend Deployment
+## Reproducible Setup
 
-- Done 2026-06-29 inside existing `hermes-glasses.service`.
-- Keep rollback backups on VPS:
-  - `/opt/hermes-glasses-webapp/server.mjs.bak-20260629T080030Z`
-  - `/etc/nginx/sites-enabled/hermes-glasses.conf.bak-20260629T080030Z`
+- Keep the simulator build reproducible through GitHub Actions.
+- Validate a complete setup against a developer's own HTTPS gateway.
+- Document the minimum Hermes CLI configuration needed for text and image requests.
 
 ## Hardening
 

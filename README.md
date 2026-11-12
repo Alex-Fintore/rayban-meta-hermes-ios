@@ -1,68 +1,67 @@
-# Ray-Ban Meta × Hermes
+<p align="center">
+  <img src="docs/assets/cover.jpg" alt="Hermes — голосовой и визуальный помощник для Ray-Ban Meta и iPhone" width="1280">
+</p>
 
-Экспериментальный помощник для iPhone и очков Ray-Ban Meta. Приложение принимает вопрос голосом или текстом, при необходимости получает снимок с очков, отправляет запрос в Hermes и озвучивает ответ.
+# Hermes для Ray-Ban Meta
 
-## Возможности
+**Задайте вопрос о том, что перед вами. Получите ответ голосом.**
 
-- Подключение очков через Meta Wearables Device Access Toolkit, видеопоток и снимки.
-- Голосовой ввод через Apple Speech и ручной ввод вопроса.
-- Hands-free с обращением «Гермес» / «Hermes»: накопление команды, запрос, озвучивание и возврат к прослушиванию.
-- «Какая погода» отправляет текст; «что передо мной» сначала запрашивает снимок. Если снимка нет, визуальный вопрос не отправляется.
-- Русский голос для кириллицы, предпочтение установленных голосов повышенного качества и Siri Shortcut `Start Hermes`.
-- Ответы о погоде через Open-Meteo без запуска Hermes CLI.
-- Токен в Keychain; адрес сервера и идентификатор сессии в UserDefaults.
+Экспериментальный помощник для iPhone и очков Ray-Ban Meta: SwiftUI, камера очков и Hermes в одном голосовом сценарии. Приложение различает обычный вопрос и запрос, для которого нужен снимок.
 
-## Архитектура
+[![Build](https://github.com/Alex-Fintore/rayban-meta-hermes-ios/actions/workflows/build.yml/badge.svg)](https://github.com/Alex-Fintore/rayban-meta-hermes-ios/actions/workflows/build.yml)
+![iOS 17+](https://img.shields.io/badge/iOS-17%2B-111111?logo=apple)
+![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-F05138?logo=swift&logoColor=white)
+![Meta DAT 0.8.0](https://img.shields.io/badge/Meta_DAT-0.8.0-0866FF)
 
-```text
-Ray-Ban Meta ── Meta DAT ── iPhone / SwiftUI
-                              │
-                    текст + необязательный JPEG
-                              │ HTTPS / Bearer token
-                              ▼
-                     POST /api/glasses/ask
-                              │
-                  ┌───────────┴───────────┐
-                  ▼                       ▼
-              Hermes CLI              Open-Meteo
-                  └───────────┬───────────┘
-                              ▼
-                     JSON → экран + голос
+[Быстрый старт](#быстрый-старт) · [Как работает](#как-это-работает) · [Структура](#структура-проекта) · [Текущий статус](#текущий-статус) · [Руководство разработчика](docs/DEVELOPMENT.md)
+
+## Один вопрос — нужный контекст
+
+Включите Hands-free и обратитесь к помощнику: «Гермес» или «Hermes». Он соберёт фразу, при необходимости получит кадр с очков, отправит запрос и озвучит ответ. После ответа прослушивание возобновится.
+
+| Вопрос | Что делает приложение |
+| --- | --- |
+| «Гермес, что передо мной?» | Получает снимок с очков и отправляет его вместе с вопросом |
+| «Гермес, прочитай это» | Запрашивает снимок для визуального ответа |
+| «Гермес, какая погода в Алматы?» | Передаёт запрос в Open-Meteo без запуска модели |
+| Обычный вопрос | Отправляет текст без лишнего обращения к камере |
+
+Если визуальный запрос не получил снимок, приложение сообщает об этом. Предыдущий кадр очищается перед каждой новой командой.
+
+Также реализованы ручной ввод, кнопка голосового ввода, просмотр видеопотока, Siri Shortcut `Start Hermes` и выбор качественного русского голоса для кириллицы. Токен шлюза хранится в Keychain.
+
+## Как это работает
+
+```mermaid
+flowchart LR
+    Glasses["Ray-Ban Meta"] -->|Meta DAT| Phone["iPhone · SwiftUI"]
+    Phone -->|"Текст + JPEG · HTTPS"| API["Node.js API"]
+    API --> Hermes["Hermes CLI"]
+    API --> Weather["Open-Meteo"]
+    Hermes --> Answer["Ответ"]
+    Weather --> Answer
+    Answer --> Phone
+    Phone --> Output["Экран + голос"]
 ```
 
-| Путь | Назначение |
-| --- | --- |
-| `ios/CameraAccess.xcodeproj` | Xcode-проект, схема `CameraAccess`, приложение `RaybanHermes` |
-| `ios/CameraAccess/CameraAccessApp.swift` | Точка входа, настройка DAT и навигация |
-| `ios/CameraAccess/Views/` | Подключение, экран запроса, видеопоток, настройки и отладка |
-| `ios/CameraAccess/ViewModels/WearablesViewModel.swift` | Регистрация, список устройств и совместимость |
-| `ios/CameraAccess/ViewModels/DeviceSessionManager.swift` | Жизненный цикл сессии очков |
-| `ios/CameraAccess/ViewModels/StreamSessionViewModel.swift` | Снимки, голосовой цикл, HTTP-клиент, Keychain и аудио |
-| `ios/CameraAccess/ViewModels/HermesHandsFreeCommandParser.swift` | Обращение, буфер команды, текстовый или визуальный запрос |
-| `ios/CameraAccess/ViewModels/HermesSpeechVoiceSelector.swift` | Язык и качество голоса |
-| `ios/CameraAccess/HermesShortcuts.swift` | App Intent и Siri Shortcut |
-| `ios/CameraAccessTests/`, `ios/CameraAccessUITests/` | Meta MockDeviceKit и интерфейсные сценарии |
-| `backend/` | Самостоятельный Express-шлюз для iOS; основной вариант локального запуска |
-| `deploy/hermes-glasses-webapp/` | Снимок Node.js-сервера с `/health`, `/api/chat` и API очков |
-| `.github/workflows/build.yml` | Ручной запуск проверок и сборки iOS Simulator в GitHub Actions |
-| `PROJECT.md`, `STATE.md`, `ROADMAP.md` | Назначение, текущая проверка и оставшиеся работы |
+iPhone работает с очками и голосом. Шлюз проверяет Bearer token, обрабатывает запрос и временный снимок. Hermes отвечает на обычные и визуальные вопросы; погода обрабатывается отдельным маршрутом.
 
-Два сервера запускаются отдельно. Они реализуют одинаковый маршрут для iOS, но отличаются конфигурацией и поведением при занятости Hermes. В `deploy/` отсутствует каталог `public/` прежнего веб-интерфейса: API запускается, главная страница возвращает 404.
+## Быстрый старт
 
-## Локальный сервер
+Нужны Node.js 20+, настроенный Hermes CLI и полный Xcode с поддержкой Swift tools 6.0+. SDK Meta DAT закреплён на версии `0.8.0`. Для аппаратной проверки понадобятся совместимые очки и iPhone с Developer Mode.
 
-Нужны Node.js 20+, npm и настроенный Hermes CLI в `PATH`. Ключи провайдера модели настраиваются на стороне Hermes; приложение получает отдельный `APP_TOKEN` шлюза.
-
-Из корня репозитория:
+### 1. Запустите шлюз
 
 ```bash
+git clone https://github.com/Alex-Fintore/rayban-meta-hermes-ios.git
+cd rayban-meta-hermes-ios
 npm ci --prefix backend
 APP_TOKEN=local-development-only PORT=8787 npm start --prefix backend
 ```
 
-`local-development-only` — пример для локальной проверки. Для своего сервера задайте собственный токен и HTTPS. Реальные токены не следует добавлять в репозиторий.
+`local-development-only` — пример для локальной проверки. Для своего сервера используйте собственный токен и HTTPS.
 
-Запрос без обращения к модели:
+Проверьте HTTP-маршрут без вызова модели:
 
 ```bash
 curl http://127.0.0.1:8787/api/glasses/ask \
@@ -70,73 +69,49 @@ curl http://127.0.0.1:8787/api/glasses/ask \
   -F 'text=какая погода'
 ```
 
-Сервер вернёт уточнение города. Вопрос с городом обращается к Open-Meteo; остальные вопросы запускают Hermes CLI.
+В ответ придёт уточнение города. Для обычного вопроса серверу потребуется работающий Hermes CLI.
 
-| Переменная `backend/` | Значение по умолчанию / смысл |
-| --- | --- |
-| `APP_TOKEN` | Обязательный Bearer token |
-| `PORT` | `8787` |
-| `HERMES_GLASSES_MODEL` | Не задана; используется настройка Hermes |
-| `HERMES_GLASSES_IGNORE_RULES` | Только `1` добавляет `--ignore-rules` |
-| `HERMES_MAX_TURNS` | `1` |
-| `HERMES_MAX_CONCURRENT` | `1`; остальные запросы ожидают в очереди |
-| `HERMES_GLASSES_SOURCE` | `rayban-ios` |
-
-API принимает `multipart/form-data`: обязательное поле `text` до 2000 символов, необязательные `image` (JPEG/PNG до 5 MiB) и `sessionId`. Ответ: `{"answer":"…","sessionId":"…"}`. Express-шлюз удаляет временный снимок до отправки успешного ответа; на ошибке также выполняется очистка. Вопросы с очков запускают Hermes без `--resume`: `sessionId` не означает сохранённый контекст диалога модели.
-
-Альтернативный сервер:
-
-```bash
-APP_TOKEN=local-development-only node deploy/hermes-glasses-webapp/server.mjs
-```
-
-Он слушает `127.0.0.1:8765`, ищет Hermes в `/usr/local/bin/hermes` (переопределяется через `HERMES_CMD`) и возвращает 429, когда Hermes занят. Здесь `HERMES_GLASSES_IGNORE_RULES` включён по умолчанию; `0` отключает флаг. Этот сервер сохранён как существующая реализация для VPS; команды выше не выполняют развёртывание.
-
-## Сборка и запуск iOS
-
-В проекте задан iOS 17.0+, SDK Meta DAT закреплён на версии `0.8.0` в `Package.resolved`. Нужен полный Xcode: его Command Line Tools недостаточно. Манифест закреплённого SDK требует Swift tools 6.0 ([Package.swift](https://github.com/facebook/meta-wearables-dat-ios/blob/2e30f1253ab76ee3c448a29dce39114ab09763c3/Package.swift)).
+### 2. Настройте приложение
 
 ```bash
 open ios/CameraAccess.xcodeproj
 ```
 
-Для запуска на iPhone выберите свою команду в Signing & Capabilities и включите Developer Mode. Настройте очки и регистрацию DAT по [документации Meta](https://wearables.developer.meta.com/docs/develop/). В Settings приложения укажите HTTPS-адрес своего шлюза и его Access Token. Для доступа с iPhone нужен доступный телефону адрес сервера: `localhost` относится к самому телефону.
+1. Выберите схему `CameraAccess` и свою команду в Signing & Capabilities.
+2. Настройте очки и регистрацию DAT по [документации Meta](https://wearables.developer.meta.com/docs/develop/).
+3. В Settings приложения укажите HTTPS-адрес **своего** шлюза и его Access Token. Адрес по умолчанию пуст; `localhost` на iPhone относится к самому телефону.
+4. Запустите приложение, завершите подключение очков и разрешите микрофон и распознавание речи.
 
-Сборка для симулятора без подписи:
+### 3. Соберите для симулятора
 
-```bash
-xcodebuild \
-  -project ios/CameraAccess.xcodeproj \
-  -scheme CameraAccess \
-  -configuration Debug \
-  -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath ios/DerivedData \
-  -onlyUsePackageVersionsFromResolvedFile \
-  CODE_SIGNING_ALLOWED=NO \
-  build
-```
+Откройте **[Actions → Build](https://github.com/Alex-Fintore/rayban-meta-hermes-ios/actions/workflows/build.yml) → Run workflow**. Готовый `RaybanHermes-simulator.zip` появится в артефактах запуска.
 
-Результат: `ios/DerivedData/Build/Products/Debug-iphonesimulator/RaybanHermes.app`. Для iPhone нужна отдельная подписанная сборка.
+Команда локальной сборки, API и переменные окружения описаны в [руководстве разработчика](docs/DEVELOPMENT.md). Для установки на iPhone требуется отдельная подписанная сборка.
 
-В GitHub откройте **Actions → Build → Run workflow**. Workflow выполняет серверные проверки и ту же сборку на macOS с Xcode, затем сохраняет `RaybanHermes-simulator.zip` в артефактах запуска. Используется [стандартный macOS runner GitHub](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+## Структура проекта
 
-Проверки серверов отдельно:
+| Каталог | Что внутри |
+| --- | --- |
+| [`ios/`](ios/) | SwiftUI-приложение, интеграция DAT, голос, Keychain, unit- и UI-тесты |
+| [`backend/`](backend/) | Express-шлюз для запросов с iPhone |
+| [`deploy/hermes-glasses-webapp/`](deploy/hermes-glasses-webapp/) | Снимок альтернативного сервера для VPS |
+| [`.github/workflows/`](.github/workflows/) | Воспроизводимая сборка для iOS Simulator |
+| [`docs/`](docs/) | Техническое руководство и обложка |
 
-```bash
-npm test --prefix backend
-node --test deploy/hermes-glasses-webapp/server.test.mjs
-```
+Подробная карта классов и схема запросов — в [руководстве разработчика](docs/DEVELOPMENT.md).
 
-## Состояние проверки
+## Текущий статус
 
-12 ноября 2026 года: зависимости Express-шлюза установлены из lock-файла; 9 его тестов и 1 тест альтернативного сервера прошли. Локальный HTTP-запрос получил 401 без авторизации и 200 с тестовым токеном. Чистая Swift-логика обращения, буфера команд, визуального маршрута и выбора голоса скомпилирована и проверена отдельно.
+**Прототип для разработки и экспериментов.** Сборка iOS Simulator проверена на Xcode 26.6; серверные проверки и локальный HTTP-запрос прошли. [Результаты сборок](https://github.com/Alex-Fintore/rayban-meta-hermes-ios/actions/workflows/build.yml) доступны в Actions.
 
-Сборка iOS Simulator прошла на Xcode 26.6 в [GitHub Actions](https://github.com/Alex-Fintore/rayban-meta-hermes-ios/actions/runs/43159923089). В этом запуске также прошли серверные проверки; [архив приложения](https://github.com/Alex-Fintore/rayban-meta-hermes-ios/actions/runs/43159923089/artifacts/13916754429) доступен участникам приватного репозитория. Артефакты Actions имеют срок хранения; workflow позволяет повторить сборку.
+- Полный сценарий на реальных iPhone и Ray-Ban Meta требует повторной аппаратной проверки.
+- Приложению нужен ваш работающий HTTPS-шлюз; готовый облачный сервис в комплект не входит.
+- В снимке `deploy/` нет файлов прежнего веб-интерфейса. Для запуска API они не нужны.
 
-На проверенном Mac установлен только Command Line Tools, поэтому использована сборка в GitHub. Текущий снимок и оставшиеся шаги — в [STATE.md](STATE.md).
+Оставшиеся направления — в [ROADMAP.md](ROADMAP.md), актуальная проверка — в [STATE.md](STATE.md).
 
-В коде сохранился прежний адрес `https://hermes.178.104.38.60.sslip.io`. При текущей проверке TLS-сертификат не соответствует этому имени. Для работы приложения требуется исправить HTTPS на сервере либо указать другой работающий адрес в Settings. Изменения сервера и повторная проверка с настоящими очками в эту подготовку репозитория не входят.
+## Основа проекта
 
-## Происхождение iOS-кода
+iOS-часть основана на примере CameraAccess из [Meta Wearables DAT iOS](https://github.com/facebook/meta-wearables-dat-ios). Уведомления Meta сохранены; условия SDK находятся в [ios/LICENSE](ios/LICENSE). Отдельная лицензия для собственных дополнений пока не выбрана.
 
-iOS-часть основана на примере CameraAccess из [Meta Wearables DAT iOS](https://github.com/facebook/meta-wearables-dat-ios). Уведомления Meta сохранены; [ios/LICENSE](ios/LICENSE) содержит условия использования SDK из закреплённой версии. Отдельная лицензия для собственных дополнений проекта не выбрана.
+Обложка — концептуальная иллюстрация, созданная встроенным ImageGen. [Промпт](docs/assets/cover-prompt.txt).

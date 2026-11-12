@@ -718,7 +718,7 @@ private final class HermesSettingsStore {
   var serverURL: String {
     get {
       UserDefaults.standard.string(forKey: serverURLKey)
-        ?? "https://hermes.178.104.38.60.sslip.io"
+        ?? ""
     }
     set {
       UserDefaults.standard.set(newValue, forKey: serverURLKey)
