@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.*
+!.env.example
+DerivedData/
+build/
+xcuserdata/
+*.xcuserstate
+*.xcarchive/
+*.ipa
+*.p8
+*.p12
+*.mobileprovision
+.DS_Store
+AGENTS.md
+.planning/
+.claude/

@@ -1,0 +1,42 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install backend dependencies
+        run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Test backend
+        run: npm test --prefix backend
+      - name: Test deployment snapshot
+        run: node --test deploy/hermes-glasses-webapp/server.test.mjs
+      - name: Build iOS Simulator app
+        run: |
+          xcodebuild -version
+          xcodebuild \
+            -project ios/CameraAccess.xcodeproj \
+            -scheme CameraAccess \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/DerivedData \
+            -onlyUsePackageVersionsFromResolvedFile \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Package simulator app
+        run: |
+          mkdir -p ios/build
+          ditto -c -k --keepParent ios/DerivedData/Build/Products/Debug-iphonesimulator/RaybanHermes.app ios/build/RaybanHermes-simulator.zip
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: RaybanHermes-simulator
+          path: ios/build/RaybanHermes-simulator.zip
+          if-no-files-found: error

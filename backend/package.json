@@ -1,0 +1,20 @@
+{
+  "name": "rayban-meta-hermes-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.1",
+    "multer": "^2.2.0",
+    "uuid": "^11.1.1"
+  },
+  "devDependencies": {
+    "form-data": "^4.0.0",
+    "supertest": "^7.0.0"
+  }
+}
